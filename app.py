@@ -19,13 +19,15 @@ SPREADING_INFECTED = 'I'
 SPREADING_RECOVERED = 'R'
 SPREADING_DEAD = 'D'
 SPREADING_QUARANTINED = 'Quarantined'
+SPREADING_EXPOSED = 'E'
 
 color_map = {
     SPREADING_SUSCEPTIBLE: 'blue',
     SPREADING_INFECTED: 'red',
     SPREADING_RECOVERED: 'green',
     SPREADING_DEAD: 'black',
-    SPREADING_QUARANTINED: 'orange'
+    SPREADING_QUARANTINED: 'orange',
+    SPREADING_EXPOSED:'yellow'
 }
 
 # Crear la aplicación Dash
@@ -124,6 +126,90 @@ def display_model_parameters(selected_model):
             html.Label("Probabilidad de Muerte (pDeath):"),
             dcc.Input(id='pDeath', type='number', value=0.005, step=0.001),
     ])
+    elif selected_model == 'SIRS_period':
+        return html.Div([
+            html.Label("Número de Nodos:"),
+            dcc.Input(id='num-nodes', type='number', value=300, min=10, step=10),
+            
+            html.Label("Probabilidad de Infección (pInfect):"),
+            dcc.Input(id='pInfect', type='number', value=0.1, step=0.01),
+            
+            html.Label("Probabilidad de Recuperación (pRecover):"),
+            dcc.Input(id='pRecover', type='number', value=0.01, step=0.01),
+            
+            html.Label("Número de iteraciones para la recuperación (recovery_duration):"),
+            dcc.Input(id='recovery_duration', type='number', value=5, step=1),
+    ])
+    
+    elif selected_model == 'SIRS_probability':
+        return html.Div([
+            html.Label("Número de Nodos:"),
+            dcc.Input(id='num-nodes', type='number', value=300, min=10, step=10),
+            
+            html.Label("Probabilidad de Infección (pInfect):"),
+            dcc.Input(id='pInfect', type='number', value=0.1, step=0.01),
+            
+            html.Label("Probabilidad de Recuperación (pRecover):"),
+            dcc.Input(id='pRecover', type='number', value=0.01, step=0.01),
+            
+            html.Label("Probabilidad de volver a ser susceptible (pSusceptible):"),
+            dcc.Input(id='pSusceptible', type='number', value=0.05, step=0.01),
+    ])
+    
+    elif selected_model == 'SEIR':
+        return html.Div([
+            html.Label("Número de Nodos:"),
+            dcc.Input(id='num-nodes', type='number', value=300, min=10, step=10),
+            
+            html.Label("Probabilidad de Infección (pInfect):"),
+            dcc.Input(id='pInfect', type='number', value=0.1, step=0.01),
+            
+            html.Label("Probabilidad de Recuperación (pRecover):"),
+            dcc.Input(id='pRecover', type='number', value=0.01, step=0.01),
+            
+            html.Label("Probabilidad de convertirse en infeccioso (pExposedToInfectious):"),
+            dcc.Input(id='pExposedToInfectious', type='number', value=0.05, step=0.01),
+    ])
+    
+    elif selected_model == 'SEIRS_inmunity':
+        return html.Div([
+            html.Label("Número de Nodos:"),
+            dcc.Input(id='num-nodes', type='number', value=300, min=10, step=10),
+            
+            html.Label("Probabilidad de Infección (pInfect):"),
+            dcc.Input(id='pInfect', type='number', value=0.1, step=0.01),
+            
+            html.Label("Probabilidad de Recuperación (pRecover):"),
+            dcc.Input(id='pRecover', type='number', value=0.01, step=0.01),
+            
+            html.Label("Probabilidad de convertirse en infeccioso (pExposedToInfectious):"),
+            dcc.Input(id='pExposedToInfectious', type='number', value=0.05, step=0.01),
+            
+            html.Label("Periodo de tiempo de inmunidad (immunity_period):"),
+            dcc.Input(id='immunity_period', type='number', value=0.05, step=0.01),
+    
+    ])
+    
+    elif selected_model == 'SEIRS_plossimmunity':
+        return html.Div([
+            html.Label("Número de Nodos:"),
+            dcc.Input(id='num-nodes', type='number', value=300, min=10, step=10),
+            
+            html.Label("Probabilidad de Infección (pInfect):"),
+            dcc.Input(id='pInfect', type='number', value=0.1, step=0.01),
+            
+            html.Label("Probabilidad de Recuperación (pRecover):"),
+            dcc.Input(id='pRecover', type='number', value=0.01, step=0.01),
+            
+            html.Label("Probabilidad de convertirse en infeccioso (pExposedToInfectious):"),
+            dcc.Input(id='pExposedToInfectious', type='number', value=0.05, step=0.01),
+            
+            html.Label("Probabilidad de volver a ser susceptible (pSusceptible):"),
+            dcc.Input(id='pSusceptible', type='number', value=0.05, step=0.01),
+  
+    ])
+  
+
     else:
         return html.Div() 
 
@@ -131,7 +217,7 @@ def display_model_parameters(selected_model):
 
 def quarantine_simulation(g, num_quarantine):
     nodes = list(g.nodes)
-    quarantined_nodes = random.sample(nodes, min(num_quarantine, len(nodes)))  # Asegúrate de no exceder los nodos disponibles
+    quarantined_nodes = random.sample(nodes, min(num_quarantine, len(nodes)))  
 
     for node in quarantined_nodes:
         g.nodes[node]['state'] = SPREADING_QUARANTINED
@@ -196,6 +282,11 @@ def update_graph(n_intervals, start_clicks, pause_clicks, continue_clicks,
                   num_vaccinate, p_vaccinate,
                   graph_data, simulation_running):
     p_death = 0.005
+    recovery_duration=5
+    pSusceptible=0.05
+    pExposedToInfectious=0.05
+    immunity_period=5
+    
     ctx = dash.callback_context
     triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
@@ -241,16 +332,16 @@ def update_graph(n_intervals, start_clicks, pause_clicks, continue_clicks,
             model = spreading_make_sis_model(p_infect, p_recover)
         elif selected_model == 'SIRD':
             model = spreading_make_sird_model(p_infect, p_recover, p_death)
-        # elif selected_model == 'SIRS_period':
-        #     model = spreading_make_sirs_model(p_infect, p_recover, p_die)
-        # elif selected_model == 'SIRS_probability':
-        #     model = spreading_make_sirs_model(p_infect, p_recover, p_die)
-        # elif selected_model == 'SEIR':
-        #     model = spreading_make_seir_model(p_infect, p_recover, gamma)
-        # elif selected_model == 'SEIRS_inmunity':
-        #     model = spreading_make_seirs_model(p_infect, p_recover, gamma, p_die)
-        # elif selected_model == 'SEIRS_plossimmunity':
-        #     model = spreading_make_seirs_model(p_infect, p_recover, gamma, p_die)
+        elif selected_model == 'SIRS_period':
+            model = spreading_make_sirs_model(p_infect, p_recover, recovery_duration)
+        elif selected_model == 'SIRS_probability':
+            model = spreading_make_sirs_model(p_infect, p_recover, pSusceptible)
+        elif selected_model == 'SEIR':
+            model = spreading_make_seir_model(p_infect, pExposedToInfectious, p_recover)
+        elif selected_model == 'SEIRS_inmunity':
+            model = spreading_make_seirs_model(p_infect, pExposedToInfectious,p_recover, immunity_period)
+        elif selected_model == 'SEIRS_plossimmunity':
+            model = spreading_make_seirs_model(p_infect, pExposedToInfectious,p_recover, pSusceptible)
 
 
         spreading_step(g, model)
