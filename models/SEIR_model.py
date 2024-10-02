@@ -1,7 +1,4 @@
-import networkx as nx  
-import math  
-import numpy.random as rnd  
-import matplotlib.pyplot as plt  
+import numpy.random as rnd   
 
 # Constantes para los estados del modelo SEIR
 SPREADING_SUSCEPTIBLE = 'S'  
